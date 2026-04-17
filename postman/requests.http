@@ -1,0 +1,101 @@
+# REST Client (VS Code) / IntelliJ HTTP Client format.
+# Uruchom docker compose up, a potem odpalaj po kolei.
+
+@authUrl = http://localhost:8001
+@habitsUrl = http://localhost:8002
+@email = marcin@example.com
+@password = SuperSecret123
+
+### 1) Rejestracja
+POST {{authUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "display_name": "Marcin"
+}
+
+### 2) Logowanie — zapisz access_token
+# @name login
+POST {{authUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### 3) /me — info o zalogowanym userze
+GET {{authUrl}}/auth/me
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 4) Utwórz nawyk
+# @name createHabit
+POST {{habitsUrl}}/habits
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Bieganie",
+  "description": "5 km o poranku",
+  "target_per_week": 4
+}
+
+### 5) Lista moich nawyków
+GET {{habitsUrl}}/habits
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 6) Zaloguj wykonanie (dzisiaj)
+POST {{habitsUrl}}/habits/{{createHabit.response.body.id}}/logs
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "note": "Rano, 6 km"
+}
+
+### 7) Historia logów
+GET {{habitsUrl}}/habits/{{createHabit.response.body.id}}/logs
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 8) Statystyki nawyku
+GET {{habitsUrl}}/habits/{{createHabit.response.body.id}}/stats
+Authorization: Bearer {{login.response.body.access_token}}
+
+### 9) Aktualizuj nawyk
+PATCH {{habitsUrl}}/habits/{{createHabit.response.body.id}}
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "target_per_week": 5
+}
+
+### 10) Usuń nawyk
+DELETE {{habitsUrl}}/habits/{{createHabit.response.body.id}}
+Authorization: Bearer {{login.response.body.access_token}}
+
+### --- Negatywne ścieżki (do demonstracji error handlingu) ---
+
+### 11) Rejestracja z krótkim hasłem → 422 VALIDATION_ERROR
+POST {{authUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@test.pl",
+  "password": "123",
+  "display_name": "X"
+}
+
+### 12) Logowanie złym hasłem → 401 UNAUTHORIZED
+POST {{authUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "zleHaslo!!"
+}
+
+### 13) Dostęp bez tokenu → 401 UNAUTHORIZED
+GET {{habitsUrl}}/habits

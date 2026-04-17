@@ -1,0 +1,117 @@
+{
+  "info": {
+    "name": "HabitTracker",
+    "_postman_id": "habit-tracker-col-001",
+    "description": "Kolekcja do testów end-to-end obu mikroserwisów (auth + habits).\nUstaw zmienne środowiskowe: authUrl=http://localhost:8001, habitsUrl=http://localhost:8002",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "authUrl", "value": "http://localhost:8001"},
+    {"key": "habitsUrl", "value": "http://localhost:8002"},
+    {"key": "email", "value": "marcin@example.com"},
+    {"key": "password", "value": "SuperSecret123"},
+    {"key": "accessToken", "value": ""},
+    {"key": "habitId", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "1. Register",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": "{{authUrl}}/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"display_name\": \"Marcin\"\n}"
+        }
+      }
+    },
+    {
+      "name": "2. Login",
+      "event": [{
+        "listen": "test",
+        "script": {"exec": [
+          "const json = pm.response.json();",
+          "if (json.access_token) {",
+          "  pm.collectionVariables.set('accessToken', json.access_token);",
+          "}"
+        ], "type": "text/javascript"}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": "{{authUrl}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "3. Me",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+        "url": "{{authUrl}}/auth/me"
+      }
+    },
+    {
+      "name": "4. Create Habit",
+      "event": [{
+        "listen": "test",
+        "script": {"exec": [
+          "const json = pm.response.json();",
+          "if (json.id) { pm.collectionVariables.set('habitId', json.id); }"
+        ], "type": "text/javascript"}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{accessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{habitsUrl}}/habits",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Bieganie\",\n  \"description\": \"5 km rano\",\n  \"target_per_week\": 4\n}"
+        }
+      }
+    },
+    {
+      "name": "5. List Habits",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+        "url": "{{habitsUrl}}/habits"
+      }
+    },
+    {
+      "name": "6. Log Habit",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{accessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{habitsUrl}}/habits/{{habitId}}/logs",
+        "body": {"mode": "raw", "raw": "{\n  \"note\": \"Rano, 6 km\"\n}"}
+      }
+    },
+    {
+      "name": "7. Habit Stats",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+        "url": "{{habitsUrl}}/habits/{{habitId}}/stats"
+      }
+    },
+    {
+      "name": "8. Delete Habit",
+      "request": {
+        "method": "DELETE",
+        "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+        "url": "{{habitsUrl}}/habits/{{habitId}}"
+      }
+    }
+  ]
+}
