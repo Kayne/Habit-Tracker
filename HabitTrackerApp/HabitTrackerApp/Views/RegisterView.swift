@@ -42,7 +42,7 @@ struct RegisterView: View {
 
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
+                        .textContentType(.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 

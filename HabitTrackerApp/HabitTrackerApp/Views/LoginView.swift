@@ -10,9 +10,15 @@ import SwiftUI
 struct LoginView: View {
     @Environment(AuthStore.self) private var auth
 
+    /// Ostatnio użyty email zapisywany przez AuthStore po udanym loginie —
+    /// pre-fillujemy pole, żeby nie trzeba było go wpisywać co sesję.
+    /// Hasła celowo nie zapamiętujemy; od tego jest Keychain / Passwords.
+    @AppStorage(AuthStore.lastUsedEmailKey) private var lastUsedEmail: String = ""
+
     @State private var email: String = ""
     @State private var password: String = ""
     @State private var showRegister: Bool = false
+    @State private var didPrefill: Bool = false
 
     private var canSubmit: Bool {
         !email.trimmingCharacters(in: .whitespaces).isEmpty
@@ -37,7 +43,7 @@ struct LoginView: View {
                 Section("Konto") {
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
+                        .textContentType(.username)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 
@@ -76,6 +82,14 @@ struct LoginView: View {
             }
             .navigationTitle("")
             .toolbar(.hidden, for: .navigationBar)
+            .onAppear {
+                // Pre-fill tylko raz, i tylko gdy user sam nic jeszcze nie wpisał
+                // (np. po wylogowaniu i ponownym wejściu na ten widok).
+                if !didPrefill, email.isEmpty, !lastUsedEmail.isEmpty {
+                    email = lastUsedEmail
+                    didPrefill = true
+                }
+            }
             .alert(
                 "Nie udało się zalogować",
                 isPresented: errorBinding,

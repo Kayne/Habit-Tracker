@@ -15,6 +15,12 @@ import Observation
 @Observable
 final class AuthStore {
 
+    // MARK: - UserDefaults keys
+
+    /// Klucz pod którym trzymamy ostatnio używany email (do pre-fillowania
+    /// pola na ekranie logowania). TYLKO email — hasła nie trzymamy.
+    static let lastUsedEmailKey = "lastUsedEmail"
+
     // MARK: - Published state
 
     /// Aktualny token. `nil` == niezalogowany.
@@ -105,6 +111,11 @@ final class AuthStore {
         )
         self.accessToken = tokenResponse.accessToken
         KeychainStore.saveToken(tokenResponse.accessToken)
+
+        // Zapamiętujemy email do pre-fillowania formularza przy następnym
+        // logowaniu (patrz LoginView). Hasła NIE trzymamy — tylko email.
+        let trimmed = email.trimmingCharacters(in: .whitespaces)
+        UserDefaults.standard.set(trimmed, forKey: Self.lastUsedEmailKey)
 
         // Token mamy — od razu pobieramy /me dla display_name na UI.
         let user: UserResponse = try await client.send(.GET, path: "/auth/me")
