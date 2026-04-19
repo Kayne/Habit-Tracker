@@ -27,8 +27,17 @@ struct RegisterView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Your info") {
-                    TextField("Display name", text: $displayName)
+                Section {
+                    AuthHeroHeader(
+                        title: "Załóż konto",
+                        subtitle: "Zacznij śledzić swoje nawyki."
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+
+                Section("Dane") {
+                    TextField("Nazwa wyświetlana", text: $displayName)
                         .textContentType(.name)
 
                     TextField("Email", text: $email)
@@ -37,7 +46,7 @@ struct RegisterView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 
-                    SecureField("Password (min 8 chars)", text: $password)
+                    SecureField("Hasło (min. 8 znaków)", text: $password)
                         .textContentType(.newPassword)
                 }
 
@@ -49,29 +58,32 @@ struct RegisterView: View {
                                 password: password,
                                 displayName: displayName
                             )
-                            // Jeśli register się udał, AuthStore od razu zalogował
-                            // i ustawił accessToken — zamykamy sheet.
                             if auth.isLoggedIn { dismiss() }
                         }
                     } label: {
                         HStack {
                             if auth.isLoading { ProgressView().padding(.trailing, 4) }
-                            Text("Create account")
+                            Text("Utwórz konto")
+                                .fontWeight(.semibold)
                         }
                         .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.primary)
                     .disabled(!canSubmit)
+                    .listRowBackground(Color.clear)
                 }
             }
-            .navigationTitle("Register")
+            .navigationTitle("Rejestracja")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Anuluj") { dismiss() }
+                        .foregroundStyle(Theme.detail)
                 }
             }
             .alert(
-                "Could not register",
+                "Nie udało się zarejestrować",
                 isPresented: errorBinding,
                 actions: { Button("OK", role: .cancel) {} },
                 message: { Text(auth.errorMessage ?? "") }
@@ -90,4 +102,5 @@ struct RegisterView: View {
 #Preview {
     RegisterView()
         .environment(AuthStore())
+        .tint(Theme.primary)
 }

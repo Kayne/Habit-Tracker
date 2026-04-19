@@ -25,6 +25,9 @@ struct HabitTrackerAppApp: App {
             ContentView()
                 .environment(auth)
                 .environment(habits)
+                // Jedno miejsce które koloruje wszystkie natywne controlsy
+                // (buttony, ProgressView, toggle, nav tint) — patrz Theme.swift.
+                .tint(Theme.primary)
         }
     }
 }

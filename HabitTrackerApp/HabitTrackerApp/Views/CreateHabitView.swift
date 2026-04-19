@@ -22,26 +22,55 @@ struct CreateHabitView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Habit") {
-                    TextField("Name", text: $name)
-                    TextField("Description (optional)", text: $description, axis: .vertical)
+                Section {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Theme.accent.opacity(0.18))
+                            Image(systemName: "leaf.fill")
+                                .foregroundStyle(Theme.accent)
+                        }
+                        .frame(width: 44, height: 44)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Nowy nawyk")
+                                .font(.headline)
+                                .foregroundStyle(Theme.primary)
+                            Text("Zdefiniuj co chcesz śledzić.")
+                                .font(.caption)
+                                .foregroundStyle(Theme.detail)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                    .listRowBackground(Theme.highlight.opacity(0.4))
+                }
+
+                Section("Nawyk") {
+                    TextField("Nazwa", text: $name)
+                    TextField("Opis (opcjonalnie)", text: $description, axis: .vertical)
                         .lineLimit(2...4)
                 }
 
-                Section("Target") {
+                Section("Cel") {
                     Stepper(value: $targetPerWeek, in: 1...7) {
-                        Text("\(targetPerWeek)× per week")
+                        HStack {
+                            Image(systemName: "target")
+                                .foregroundStyle(Theme.secondary)
+                            Text("\(targetPerWeek)× na tydzień")
+                        }
                     }
                 }
             }
-            .navigationTitle("New Habit")
+            .navigationTitle("Nowy nawyk")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Anuluj") { dismiss() }
+                        .foregroundStyle(Theme.detail)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button("Zapisz") {
                         Task {
                             let ok = await habits.createHabit(
                                 name: name.trimmingCharacters(in: .whitespaces),
@@ -51,6 +80,8 @@ struct CreateHabitView: View {
                             if ok { dismiss() }
                         }
                     }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Theme.primary)
                     .disabled(!canSubmit)
                 }
             }
@@ -64,4 +95,5 @@ struct CreateHabitView: View {
 #Preview {
     CreateHabitView()
         .environment(HabitsStore(auth: AuthStore()))
+        .tint(Theme.primary)
 }

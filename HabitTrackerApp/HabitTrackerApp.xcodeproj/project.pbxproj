@@ -29,6 +29,16 @@
 		AC69611D2F924354007E4910 /* HabitTrackerAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HabitTrackerAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AC6961FF2F92435A007E4910 /* Exceptions for "HabitTrackerApp" folder in "HabitTrackerApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AC6961052F924352007E4910 /* HabitTrackerApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AC6961082F924352007E4910 /* HabitTrackerApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -49,16 +59,6 @@
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		AC6961FF2F92435A007E4910 /* Exceptions for "HabitTrackerApp" folder in "HabitTrackerApp" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = AC6961052F924352007E4910 /* HabitTrackerApp */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AC6961032F924352007E4910 /* Frameworks */ = {

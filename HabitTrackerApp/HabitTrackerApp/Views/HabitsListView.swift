@@ -17,11 +17,7 @@ struct HabitsListView: View {
         NavigationStack {
             Group {
                 if habits.habits.isEmpty && !habits.isLoading {
-                    ContentUnavailableView(
-                        "No habits yet",
-                        systemImage: "checklist",
-                        description: Text("Tap + to add your first habit.")
-                    )
+                    EmptyHabitsView()
                 } else {
                     List {
                         ForEach(habits.habits) { habit in
@@ -41,7 +37,7 @@ struct HabitsListView: View {
                     .refreshable { await habits.loadHabits() }
                 }
             }
-            .navigationTitle("My Habits")
+            .navigationTitle("Moje nawyki")
             .navigationDestination(for: Habit.self) { habit in
                 HabitDetailView(habitId: habit.id)
             }
@@ -53,17 +49,21 @@ struct HabitsListView: View {
                             Text(user.email).font(.caption)
                             Divider()
                         }
-                        Button("Log out", role: .destructive) {
+                        Button("Wyloguj", role: .destructive) {
                             auth.logout()
                             habits.reset()
                         }
                     } label: {
-                        Image(systemName: "person.circle")
+                        Image(systemName: "person.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(Theme.primary)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showCreate = true } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(Theme.accent)
                     }
                 }
             }
@@ -72,14 +72,13 @@ struct HabitsListView: View {
                     .environment(habits)
             }
             .task {
-                // Pierwsze wejście — ładujemy listę i dane o userze.
                 await habits.loadHabits()
                 if auth.currentUser == nil {
                     await auth.fetchCurrentUser()
                 }
             }
             .alert(
-                "Error",
+                "Błąd",
                 isPresented: errorBinding,
                 actions: { Button("OK", role: .cancel) {} },
                 message: { Text(habits.errorMessage ?? "") }
@@ -100,21 +99,81 @@ struct HabitsListView: View {
 private struct HabitRow: View {
     let habit: Habit
 
+    /// Deterministyczny kolor leaf-ikonki per nawyk — bierzemy hash UUID-a
+    /// i mapujemy na jeden z kolorów palety. Dzięki temu każdy nawyk
+    /// ma swój "własny" kolor ale zawsze ten sam między restartami.
+    private var accent: Color {
+        let palette: [Color] = [Theme.primary, Theme.secondary, Theme.accent, Theme.detail]
+        let idx = abs(habit.id.hashValue) % palette.count
+        return palette[idx]
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(habit.name)
-                .font(.headline)
-            if let desc = habit.description, !desc.isEmpty {
-                Text(desc)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(accent.opacity(0.18))
+                Image(systemName: "leaf.fill")
+                    .foregroundStyle(accent)
             }
-            Text("Target: \(habit.targetPerWeek)×/week")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            .frame(width: 40, height: 40)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(habit.name)
+                    .font(.headline)
+                    .foregroundStyle(Theme.primary)
+
+                if let desc = habit.description, !desc.isEmpty {
+                    Text(desc)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 4) {
+                    Image(systemName: "target")
+                        .font(.caption2)
+                    Text("\(habit.targetPerWeek)×/tydzień")
+                        .font(.caption)
+                }
+                .foregroundStyle(Theme.detail)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule().fill(Theme.highlight.opacity(0.5))
+                )
+            }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Empty state
+
+private struct EmptyHabitsView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(Theme.highlight.opacity(0.7))
+                    .frame(width: 120, height: 120)
+                Image(systemName: "leaf.circle.fill")
+                    .font(.system(size: 70))
+                    .foregroundStyle(Theme.secondary)
+            }
+
+            Text("Brak nawyków")
+                .font(.title2)
+                .fontWeight(.semibold)
+                .foregroundStyle(Theme.primary)
+
+            Text("Dodaj swój pierwszy nawyk przyciskiem + u góry.")
+                .font(.subheadline)
+                .foregroundStyle(Theme.detail)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -122,4 +181,5 @@ private struct HabitRow: View {
     HabitsListView()
         .environment(AuthStore())
         .environment(HabitsStore(auth: AuthStore()))
+        .tint(Theme.primary)
 }
