@@ -175,6 +175,10 @@ open http://localhost:8002/docs
 
 # 5. End-to-end flow
 bash postman/curl.sh
+
+# 6. (opcjonalnie) Klient iOS
+open HabitTrackerApp/HabitTrackerApp.xcodeproj
+# W Xcode wybierz symulator iOS 17+ i ⌘R — szczegóły w sekcji 8.
 ```
 
 Zatrzymanie:
@@ -224,13 +228,126 @@ habit-tracker/
 │   ├── requests.http            # REST Client (VS Code)
 │   ├── curl.sh                  # end-to-end bashowy smoketest
 │   └── HabitTracker.postman_collection.json
+├── HabitTrackerApp/             # klient iOS (SwiftUI)
+│   ├── HabitTrackerApp.xcodeproj
+│   └── HabitTrackerApp/
+│       ├── HabitTrackerAppApp.swift   # @main, wstrzykuje stores
+│       ├── ContentView.swift          # przełącznik Login ↔ HabitsList
+│       ├── Info.plist                 # ATS: NSAllowsLocalNetworking = YES
+│       ├── Core/
+│       │   ├── AppConfig.swift        # baseURL auth/habits (:8001/:8002)
+│       │   ├── APIClient.swift        # generyczny async send<T: Decodable>
+│       │   ├── APIError.swift         # mapowanie envelope'u błędów z backendu
+│       │   ├── KeychainStore.swift    # JWT w Keychainie (SecItem)
+│       │   └── Theme.swift            # paleta kolorów + semantyczne aliasy
+│       ├── Models/
+│       │   ├── AuthModels.swift       # RegisterRequest, LoginRequest, TokenResponse, UserResponse
+│       │   └── HabitModels.swift      # Habit, HabitLog, HabitStats + PATCH z encodeIfPresent
+│       ├── Stores/
+│       │   ├── AuthStore.swift        # @Observable, login/register/logout, lastUsedEmail
+│       │   └── HabitsStore.swift      # @Observable, CRUD nawyków, logi, stats
+│       └── Views/
+│           ├── LoginView.swift        # pre-fill email z UserDefaults
+│           ├── RegisterView.swift     # sheet nad LoginView
+│           ├── HabitsListView.swift   # lista + pull-to-refresh + swipe delete
+│           ├── HabitDetailView.swift  # statystyki, "Zaloguj dzisiaj", historia, edycja
+│           └── CreateHabitView.swift  # sheet z formularzem
 ├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
 └── README.md                    # ten plik
 ```
 
-## 8. Checklista wymagań
+## 8. Aplikacja iOS (HabitTrackerApp)
+
+Klient mobilny napisany w SwiftUI (iOS 17+, Swift 5 z `MainActor` jako domyślną izolacją). Konsumuje oba mikroserwisy — `auth-service` dla logowania/rejestracji i `habits-service` dla wszystkich operacji na nawykach.
+
+### Architektura
+
+Prosty MVVM z dwoma store'ami oznaczonymi `@Observable` (iOS 17 Observation framework, bez `@Published`/`ObservableObject`):
+
+- **`AuthStore`** — trzyma `accessToken`, `currentUser`, flagi `isLoading`/`errorMessage`. JWT ładowany z Keychaina przy starcie i tam chowany po loginie.
+- **`HabitsStore`** — trzyma `[Habit]`, słownik `logs`/`stats` per `habitId`. Odbiera instancję `AuthStore` w konstruktorze, żeby po 401 móc wywołać `auth.logout()` i wyczyścić stan.
+
+Obie klasy wstrzykiwane przez `@Environment(…)` do widoków — `ContentView` obserwuje `auth.isLoggedIn` i przełącza między `LoginView` a `HabitsListView`.
+
+### Komunikacja z backendem
+
+`APIClient` to cienki wrapper nad `URLSession` z generycznym `send<T: Decodable>`:
+
+- Dwie instancje — jedna dla `AppConfig.authBaseURL` (`http://localhost:8001`), druga dla `AppConfig.habitsBaseURL` (`http://localhost:8002`).
+- `tokenProvider: () -> String?` jako closure, żeby świeży JWT z `AuthStore` był dostępny przy każdym requeście bez trzymania silnej referencji.
+- Dla każdego wywołania doczepiany nagłówek `Authorization: Bearer <JWT>` (jeśli `authenticated: true`).
+- Przychodzące błędy 4xx/5xx są parsowane do tego samego envelope'u co backend (`{error: {code, message, details, request_id}}`) i rzucane jako `APIError.server(code:, message:, …)`.
+- Przy 401 klient zwraca `APIError.unauthorized`; store wykrywa to flagą `isUnauthorized` i czyści sesję (usuwa token z Keychaina + zeruje `currentUser`).
+
+### Parsowanie dat
+
+Backend (Pydantic + Postgres `TIMESTAMP`/`TIMESTAMPTZ`) zwraca daty w czterech wariantach — ISO z i bez strefy, z mikrosekundami i bez. `APIClient` ma custom `dateDecodingStrategy`, który próbuje po kolei:
+
+1. `ISO8601DateFormatter` z `.withInternetDateTime, .withFractionalSeconds`
+2. `ISO8601DateFormatter` bez `.withFractionalSeconds`
+3. `yyyy-MM-dd'T'HH:mm:ss.SSSSSS` (traktowane jako UTC)
+4. `yyyy-MM-dd'T'HH:mm:ss` (traktowane jako UTC)
+
+Dzięki temu klient działa niezależnie od tego, czy backend oddaje `TIMESTAMP` czy `TIMESTAMPTZ`.
+
+### Modele
+
+`Codable` z jawnymi `CodingKeys` tłumaczącymi `snake_case` ↔ `camelCase` (backend FastAPI używa `snake_case`, Swift — `camelCase`).
+
+Jeden niuans — `HabitUpdateRequest` ma ręczny `encode(to:)` używający `encodeIfPresent`, bo PATCH musi wysyłać **tylko pola, które zmieniły się**. Synthesized `Encodable` słałby `"name": null` i backend NULL-ował kolumnę NOT NULL → 500.
+
+### Bezpieczeństwo po stronie klienta
+
+- **JWT w Keychainie** (`KeychainStore` na `SecItem*`, `kSecAttrAccessibleAfterFirstUnlock`). Nigdy w `UserDefaults` ani w plaintext.
+- **Hasła nie są trzymane po stronie klienta** — ani w `AppStorage`, ani w Keychainie. Od tego jest iCloud Keychain / Passwords.
+- **Auto-logout po 401** — wygaśnięcie tokenu = wyczyszczenie sesji i powrót do ekranu logowania.
+- **ATS `NSAllowsLocalNetworking = YES`** w `Info.plist` — tylko po to, żeby iOS pozwolił na HTTP do `localhost` podczas developmentu. W produkcji wymusimy HTTPS.
+
+### Paleta i theming
+
+Wszystkie kolory w `Theme.swift` — pięć kolorów z palety coolors.co opakowanych w semantyczne aliasy (`primary`, `secondary`, `accent`, `detail`, `highlight`), żeby widoki nie referencjonowały surowych nazw:
+
+| Alias | Paleta | Hex | Użycie |
+|---|---|---|---|
+| `primary` | forest | `#2C5530` | Główny kolor UI, tint aplikacji |
+| `secondary` | sage | `#739E82` | Akcenty, "completion", pasek postępu |
+| `accent` | copper | `#D38B5D` | CTA ("Zaloguj dzisiaj"), ikona streak |
+| `detail` | ochre | `#99621E` | Metadata, drugorzędne |
+| `highlight` | cream | `#F3FFB6` | Tła kart, hero gradienty |
+
+Globalny `tint(Theme.primary)` ustawiany w `HabitTrackerAppApp`, dzięki czemu wszystkie `Button`, `NavigationLink` itp. dziedziczą ten kolor domyślnie.
+
+### AutoFill / iCloud Passwords
+
+iOS Simulator bywa kapryśny z AutoFill-em bez `Associated Domains` entitlement. Żeby nie trzeba było wpisywać emaila co sesję, `AuthStore` zapisuje ostatnio użyty email do `UserDefaults` po udanym loginie:
+
+```swift
+UserDefaults.standard.set(trimmed, forKey: AuthStore.lastUsedEmailKey)
+```
+
+A `LoginView` czyta go przez `@AppStorage(AuthStore.lastUsedEmailKey)` i pre-filluje pole przy pierwszym wejściu. Hasła **nie zapisujemy** — od tego jest iCloud Keychain.
+
+Dodatkowo pola formularzy używają `.textContentType(.username)` i `.newPassword` zgodnie z wytycznymi Apple, żeby systemowa propozycja zapisu hasła działała poprawnie.
+
+### Konfiguracja Xcode — pułapki, które trzeba było ominąć
+
+Projekt używa `PBXFileSystemSynchronizedRootGroup` (Xcode 16+), który automatycznie synchronizuje zawartość folderu z targetem. Dwie rzeczy, które wymagały ręcznej ingerencji w `.pbxproj`:
+
+1. **Własny `Info.plist`** — trzeba było ustawić `GENERATE_INFOPLIST_FILE = NO` i `INFOPLIST_FILE = HabitTrackerApp/Info.plist` w Debug + Release, inaczej Xcode próbował wygenerować swój.
+2. **Wykluczenie `Info.plist` z Copy Resources** — sync group dodawał go automatycznie do fazy kopiowania, co powodowało błąd "copy command from Info.plist to Info.plist". Rozwiązanie: `PBXFileSystemSynchronizedBuildFileExceptionSet` z `membershipExceptions = (Info.plist,)`.
+
+### Uruchomienie
+
+1. Najpierw backend: `docker compose up --build` w głównym katalogu repo.
+2. W Xcode otwórz `HabitTrackerApp/HabitTrackerApp.xcodeproj`.
+3. Wybierz symulator iOS 17+ (np. iPhone 15 Pro), `⌘R`.
+4. Po uruchomieniu: zarejestruj konto → apka automatycznie się loguje → lista nawyków gotowa do użycia.
+
+> Uwaga: jeśli uruchamiasz na fizycznym urządzeniu, w `AppConfig.swift` zmień `localhost` na IP lokalne komputera, na którym chodzi docker compose.
+
+## 9. Checklista wymagań
 
 - [x] Min. 2 mikroserwisy — `auth-service` + `habits-service`
 - [x] Min. 1 baza danych — PostgreSQL 16 (centralna, dwie schemy)
