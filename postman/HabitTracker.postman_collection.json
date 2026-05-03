@@ -56,7 +56,7 @@
       }
     },
     {
-      "name": "4. Create Habit",
+      "name": "4a. Create Habit (weekly)",
       "event": [{
         "listen": "test",
         "script": {"exec": [
@@ -73,7 +73,51 @@
         "url": "{{habitsUrl}}/habits",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Bieganie\",\n  \"description\": \"5 km rano\",\n  \"target_per_week\": 4\n}"
+          "raw": "{\n  \"name\": \"Bieganie\",\n  \"description\": \"5 km rano\",\n  \"frequency_type\": \"weekly\",\n  \"target_per_frequency\": 4\n}"
+        }
+      }
+    },
+    {
+      "name": "4b. Create Habit (daily)",
+      "event": [{
+        "listen": "test",
+        "script": {"exec": [
+          "const json = pm.response.json();",
+          "if (json.id) { pm.collectionVariables.set('habitId', json.id); }"
+        ], "type": "text/javascript"}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{accessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{habitsUrl}}/habits",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Medytacja\",\n  \"description\": \"10 minut rano\",\n  \"frequency_type\": \"daily\",\n  \"target_per_frequency\": 1\n}"
+        }
+      }
+    },
+    {
+      "name": "4c. Create Habit (monthly)",
+      "event": [{
+        "listen": "test",
+        "script": {"exec": [
+          "const json = pm.response.json();",
+          "if (json.id) { pm.collectionVariables.set('habitId', json.id); }"
+        ], "type": "text/javascript"}
+      }],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{accessToken}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "url": "{{habitsUrl}}/habits",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Czytanie książki\",\n  \"description\": \"Co najmniej 10 razy w miesiącu\",\n  \"frequency_type\": \"monthly\",\n  \"target_per_frequency\": 10\n}"
         }
       }
     },

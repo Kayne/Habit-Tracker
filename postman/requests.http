@@ -39,7 +39,7 @@ Content-Type: application/json
 {
   "name": "Bieganie",
   "description": "5 km o poranku",
-  "target_per_week": 4
+  "target_per_frequency": 4
 }
 
 ### 5) Lista moich nawyków
@@ -69,7 +69,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 Content-Type: application/json
 
 {
-  "target_per_week": 5
+  "target_per_frequency": 5
 }
 
 ### 10) Usuń nawyk
