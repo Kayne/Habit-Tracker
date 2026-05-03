@@ -35,8 +35,10 @@ class Habit(Base):
     user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     description = Column(String(500), nullable=True)
-    # cel: ile razy w tygodniu użytkownik chce wykonać nawyk
-    target_per_week = Column(Integer, nullable=False, default=7)
+    # Typ częstotliwości: daily | weekly | monthly
+    frequency_type = Column(String(10), nullable=False, default="weekly")
+    # Cel: ile razy w danym okresie (1 dla daily, 1-7 dla weekly, 1-31 dla monthly)
+    target_per_frequency = Column(Integer, nullable=False, default=7)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     logs = relationship(
