@@ -13,7 +13,8 @@ struct CreateHabitView: View {
 
     @State private var name: String = ""
     @State private var description: String = ""
-    @State private var targetPerWeek: Int = 7
+    @State private var frequencyType: FrequencyType = .weekly
+    @State private var targetPerFrequency: Int = FrequencyType.weekly.defaultTarget
 
     private var canSubmit: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && !habits.isLoading
@@ -52,12 +53,24 @@ struct CreateHabitView: View {
                         .lineLimit(2...4)
                 }
 
-                Section("Cel") {
-                    Stepper(value: $targetPerWeek, in: 1...7) {
+                Section("Częstotliwość") {
+                    Picker("Okres", selection: $frequencyType) {
+                        ForEach(FrequencyType.allCases) { type in
+                            Text(type.label).tag(type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: frequencyType) { _, newType in
+                        // Dostosuj cel do nowego typu jeśli przekracza limit.
+                        targetPerFrequency = min(targetPerFrequency, newType.maxTarget)
+                        if targetPerFrequency < 1 { targetPerFrequency = newType.defaultTarget }
+                    }
+
+                    Stepper(value: $targetPerFrequency, in: 1...frequencyType.maxTarget) {
                         HStack {
                             Image(systemName: "target")
                                 .foregroundStyle(Theme.secondary)
-                            Text("\(targetPerWeek)× na tydzień")
+                            Text(frequencyType.targetLabel(targetPerFrequency))
                         }
                     }
                 }
@@ -75,7 +88,8 @@ struct CreateHabitView: View {
                             let ok = await habits.createHabit(
                                 name: name.trimmingCharacters(in: .whitespaces),
                                 description: description.trimmingCharacters(in: .whitespaces),
-                                targetPerWeek: targetPerWeek
+                                frequencyType: frequencyType,
+                                targetPerFrequency: targetPerFrequency
                             )
                             if ok { dismiss() }
                         }
