@@ -147,9 +147,10 @@ The `request_id` comes from the `X-Request-ID` header (middleware auto-generates
 - `GET /health` → 200
 
 **Business rules**:
-- `target_per_week`: integer 1–7; validate in schema.
+- `frequency_type`: one of `daily | weekly | monthly` (string, default `weekly`). Stored in `habits.frequency_type` VARCHAR(10).
+- `target_per_frequency`: integer representing the target count for the chosen period. Valid ranges: `daily` → 1, `weekly` → 1–7, `monthly` → 1–31. Validated via `model_validator` in `HabitCreate` and `HabitUpdate` schemas.
 - `HabitLog` has a `UniqueConstraint(habit_id, logged_on)` — duplicate log for same day must return 409 CONFLICT.
-- Stats fields: `total_logs`, `current_streak_days`, `longest_streak_days`, `completion_rate_7d` (days logged in last 7 / 7), `last_logged_on`.
+- Stats field `completion_rate_current_period` (replaces `completion_rate_7d`): period window and denominator depend on `frequency_type` — `daily`/`weekly` → last 7 days; `monthly` → last 30 days. Denominator is `target_per_frequency` (except `daily` where it is 7). Value is capped at 1.0.
 - Ownership check is mandatory on every route that accepts a habit `{id}`. Return 403 (not 404) on ownership mismatch to avoid leaking existence.
 
 ---
@@ -182,6 +183,8 @@ Models/         — Codable DTOs mirroring backend schemas
 - **Date decoding**: `APIClient` handles four ISO 8601 variants to cope with Postgres `TIMESTAMP` vs `TIMESTAMPTZ`. Do not add `JSONDecoder.dateDecodingStrategy = .iso8601` directly — it will break the custom strategy.
 - **snake_case ↔ camelCase**: Models use explicit `CodingKeys` instead of `JSONDecoder.keyDecodingStrategy`. Keep this consistent when adding new models.
 - **PATCH encoding**: `HabitUpdateRequest` uses `encodeIfPresent` for optional fields so only changed fields are sent.
+- **FrequencyType enum**: Defined in `HabitModels.swift` with cases `daily | weekly | monthly`. Provides `label`, `maxTarget`, `defaultTarget`, and `targetLabel(_:)` helpers used by views. When `frequencyType` changes in a form, always clamp `targetPerFrequency` to `newType.maxTarget`.
+- **Stats key rename**: `HabitStats` uses `completionRateCurrentPeriod` (maps to `completion_rate_current_period`). Do not reference the old `completionRate7d` key.
 - **Theme**: Use `Theme.*` color constants. Do not introduce raw `Color(hex:)` or hard-coded colors in views.
 - **Local dev networking**: `NSAllowsLocalNetworking = YES` in `Info.plist` allows HTTP to localhost. Production builds require HTTPS — do not disable ATS globally.
 

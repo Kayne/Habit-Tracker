@@ -74,8 +74,28 @@ Endpointy:
 | DELETE | `/habits/{id}` | Usuń nawyk (i jego logi — cascade) |
 | POST | `/habits/{id}/logs` | Zaloguj wykonanie (domyślnie dzisiaj, max 1/dzień) |
 | GET | `/habits/{id}/logs` | Historia logów |
-| GET | `/habits/{id}/stats` | Statystyki: total, streak, completion 7d |
+| GET | `/habits/{id}/stats` | Statystyki: total, streak, completion bieżącego okresu |
 | GET | `/health` | Liveness probe (Docker healthcheck) |
+
+#### Model nawyku — częstotliwość
+
+Każdy nawyk ma pole `frequency_type` (`daily` | `weekly` | `monthly`) oraz `target_per_frequency` (liczba docelowych wykonań w danym okresie). Wartości dopuszczalne dla `target_per_frequency` zależą od wybranego typu:
+
+| `frequency_type` | Zakres `target_per_frequency` | Domyślnie |
+|---|---|---|
+| `daily` | 1 | 99 |
+| `weekly` | 1–7 | 7 |
+| `monthly` | 1–31 | 1 |
+
+Pole `frequency_type` pojawia się w odpowiedziach `HabitResponse` i jest przekazywane przy tworzeniu (`POST /habits`) oraz aktualizacji (`PATCH /habits/{id}`).
+
+#### Statystyki — `completion_rate_current_period`
+
+Pole `completion_rate_7d` zostało zastąpione przez `completion_rate_current_period` (0.0–1.0), którego obliczenie uwzględnia typ częstotliwości:
+
+- `daily` — dni zalogowane w ostatnich 7 dniach / 7
+- `weekly` — dni zalogowane w ostatnich 7 dniach / `target_per_frequency`
+- `monthly` — dni zalogowane w ostatnich 30 dniach / `target_per_frequency`
 
 ## 3. Wybory techniczne i ich uzasadnienie
 
@@ -131,7 +151,7 @@ Każda odpowiedź ma też nagłówek `X-Request-ID` (UUID) — wracający klient
 - `.env.example` pokazuje strukturę, ale bez wartości.
 - `JWT_SECRET`, `POSTGRES_PASSWORD` — tylko ze zmiennych środowiskowych, czytane przez `pydantic-settings`.
 
-**Walidacja wejścia.** Pydantic na każdym endpoincie. `EmailStr` sprawdza format email, `min_length` / `max_length` na wszystkich stringach, `ge/le` na intach (`target_per_week` musi być 1–7). Request, który nie przejdzie walidacji, nie dotyka logiki biznesowej.
+**Walidacja wejścia.** Pydantic na każdym endpoincie. `EmailStr` sprawdza format email, `min_length` / `max_length` na wszystkich stringach, `ge/le` na intach (`target_per_frequency` musi być 1–7). Request, który nie przejdzie walidacji, nie dotyka logiki biznesowej.
 
 **Wymuszony ownership check.** W `habits-service` każda operacja na `/habits/{id}/*` sprawdza, czy nawyk należy do zalogowanego `user_id` z JWT. Bez tego ktoś mógłby podać cudze UUID i edytować czyjeś dane.
 
