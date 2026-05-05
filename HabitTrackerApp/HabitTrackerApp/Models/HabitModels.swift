@@ -8,17 +8,65 @@
 
 import Foundation
 
+// MARK: - FrequencyType
+
+enum FrequencyType: String, Codable, CaseIterable, Identifiable {
+    case daily   = "daily"
+    case weekly  = "weekly"
+    case monthly = "monthly"
+
+    var id: String { rawValue }
+
+    /// Czytelna etykieta dla UI.
+    var label: String {
+        switch self {
+        case .daily:   return "Dziennie"
+        case .weekly:  return "Tygodniowo"
+        case .monthly: return "Miesięcznie"
+        }
+    }
+
+    /// Maksymalna wartość target_per_frequency dla danego typu.
+    var maxTarget: Int {
+        switch self {
+        case .daily:   return 99   // np. 5× dziennie wypij wodę
+        case .weekly:  return 7
+        case .monthly: return 31
+        }
+    }
+
+    /// Domyślna wartość target_per_frequency dla danego typu.
+    var defaultTarget: Int {
+        switch self {
+        case .daily:   return 1
+        case .weekly:  return 7
+        case .monthly: return 1
+        }
+    }
+
+    /// Krótka etykieta wyświetlana przy celu nawyku (np. "3×/tydz.").
+    func targetLabel(_ target: Int) -> String {
+        switch self {
+        case .daily:   return "\(target)×/dzień"
+        case .weekly:  return "\(target)×/tydz."
+        case .monthly: return "\(target)×/mies."
+        }
+    }
+}
+
 // MARK: - Habit
 
 struct HabitCreateRequest: Encodable {
     let name: String
     let description: String?
-    let targetPerWeek: Int  // 1..7
+    let frequencyType: FrequencyType
+    let targetPerFrequency: Int
 
     enum CodingKeys: String, CodingKey {
         case name
         case description
-        case targetPerWeek = "target_per_week"
+        case frequencyType = "frequency_type"
+        case targetPerFrequency = "target_per_frequency"
     }
 }
 
@@ -28,19 +76,22 @@ struct HabitCreateRequest: Encodable {
 struct HabitUpdateRequest: Encodable {
     let name: String?
     let description: String?
-    let targetPerWeek: Int?
+    let frequencyType: FrequencyType?
+    let targetPerFrequency: Int?
 
     enum CodingKeys: String, CodingKey {
         case name
         case description
-        case targetPerWeek = "target_per_week"
+        case frequencyType = "frequency_type"
+        case targetPerFrequency = "target_per_frequency"
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(name, forKey: .name)
         try container.encodeIfPresent(description, forKey: .description)
-        try container.encodeIfPresent(targetPerWeek, forKey: .targetPerWeek)
+        try container.encodeIfPresent(frequencyType, forKey: .frequencyType)
+        try container.encodeIfPresent(targetPerFrequency, forKey: .targetPerFrequency)
     }
 }
 
@@ -49,7 +100,8 @@ struct Habit: Decodable, Identifiable, Equatable, Hashable {
     let userId: UUID
     let name: String
     let description: String?
-    let targetPerWeek: Int
+    let frequencyType: FrequencyType
+    let targetPerFrequency: Int
     let createdAt: Date
 
     enum CodingKeys: String, CodingKey {
@@ -57,8 +109,22 @@ struct Habit: Decodable, Identifiable, Equatable, Hashable {
         case userId        = "user_id"
         case name
         case description
-        case targetPerWeek = "target_per_week"
+        case frequencyType = "frequency_type"
+        case targetPerFrequency = "target_per_frequency"
         case createdAt     = "created_at"
+    }
+
+    // Ręczny init, żeby `frequency_type` miało fallback na `.weekly`
+    // gdy serwer zwróci stary rekord bez tej kolumny (przed migracją).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id            = try c.decode(UUID.self,   forKey: .id)
+        userId        = try c.decode(UUID.self,   forKey: .userId)
+        name          = try c.decode(String.self, forKey: .name)
+        description   = try c.decodeIfPresent(String.self, forKey: .description)
+        frequencyType = (try? c.decode(FrequencyType.self, forKey: .frequencyType)) ?? .weekly
+        targetPerFrequency = try c.decode(Int.self,    forKey: .targetPerFrequency)
+        createdAt     = try c.decode(Date.self,   forKey: .createdAt)
     }
 }
 
@@ -99,15 +165,19 @@ struct HabitStats: Decodable, Equatable {
     let totalLogs: Int
     let currentStreakDays: Int
     let longestStreakDays: Int
-    let completionRate7d: Double   // 0.0 … 1.0
+    /// Wskaźnik ukończenia za bieżący okres (0.0…1.0).
+    /// Dla daily: ostatnie 7 dni / 7.
+    /// Dla weekly: ostatnie 7 dni / target_per_frequency.
+    /// Dla monthly: ostatnie 30 dni / target_per_frequency.
+    let completionRateCurrentPeriod: Double
     let lastLoggedOn: String?
 
     enum CodingKeys: String, CodingKey {
-        case habitId           = "habit_id"
-        case totalLogs         = "total_logs"
-        case currentStreakDays = "current_streak_days"
-        case longestStreakDays = "longest_streak_days"
-        case completionRate7d  = "completion_rate_7d"
-        case lastLoggedOn      = "last_logged_on"
+        case habitId                     = "habit_id"
+        case totalLogs                   = "total_logs"
+        case currentStreakDays            = "current_streak_days"
+        case longestStreakDays            = "longest_streak_days"
+        case completionRateCurrentPeriod = "completion_rate_current_period"
+        case lastLoggedOn                = "last_logged_on"
     }
 }

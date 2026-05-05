@@ -133,7 +133,7 @@ private struct HabitRow: View {
                 HStack(spacing: 4) {
                     Image(systemName: "target")
                         .font(.caption2)
-                    Text("\(habit.targetPerWeek)×/tydzień")
+                    Text(habit.frequencyType.targetLabel(habit.targetPerFrequency))
                         .font(.caption)
                 }
                 .foregroundStyle(Theme.detail)

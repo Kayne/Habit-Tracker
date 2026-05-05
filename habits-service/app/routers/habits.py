@@ -55,7 +55,8 @@ def create_habit(
         user_id=user_id,
         name=payload.name.strip(),
         description=payload.description,
-        target_per_week=payload.target_per_week,
+        frequency_type=payload.frequency_type.value,
+        target_per_frequency=payload.target_per_frequency,
     )
     db.add(habit)
     db.commit()

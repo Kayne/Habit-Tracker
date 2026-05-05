@@ -47,13 +47,19 @@ final class HabitsStore {
         }
     }
 
-    func createHabit(name: String, description: String?, targetPerWeek: Int) async -> Bool {
+    func createHabit(
+        name: String,
+        description: String?,
+        frequencyType: FrequencyType,
+        targetPerFrequency: Int
+    ) async -> Bool {
         var created: Habit?
         await run {
             let payload = HabitCreateRequest(
                 name: name,
                 description: description?.isEmpty == true ? nil : description,
-                targetPerWeek: targetPerWeek
+                frequencyType: frequencyType,
+                targetPerFrequency: targetPerFrequency
             )
             let habit: Habit = try await self.client.send(
                 .POST, path: "/habits", body: payload
@@ -69,14 +75,16 @@ final class HabitsStore {
         id: UUID,
         name: String?,
         description: String?,
-        targetPerWeek: Int?
+        frequencyType: FrequencyType?,
+        targetPerFrequency: Int?
     ) async -> Bool {
         var ok = false
         await run {
             let payload = HabitUpdateRequest(
                 name: name,
                 description: description,
-                targetPerWeek: targetPerWeek
+                frequencyType: frequencyType,
+                targetPerFrequency: targetPerFrequency
             )
             let updated: Habit = try await self.client.send(
                 .PATCH, path: "/habits/\(id.uuidString.lowercased())", body: payload

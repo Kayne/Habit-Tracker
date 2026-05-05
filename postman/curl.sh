@@ -28,7 +28,7 @@ echo "==> 4) Create habit"
 HID=$(curl -sS -X POST "$HABITS/habits" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Bieganie","description":"5 km rano","target_per_week":4}' | jq -r .id)
+  -d '{"name":"Bieganie","description":"5 km rano","target_per_frequency":4}' | jq -r .id)
 echo "HABIT_ID=$HID"
 
 echo "==> 5) Log today"

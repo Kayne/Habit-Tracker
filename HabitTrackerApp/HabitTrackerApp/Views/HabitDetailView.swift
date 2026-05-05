@@ -75,7 +75,7 @@ struct HabitDetailView: View {
                     .font(.title3).fontWeight(.semibold)
                     .foregroundStyle(Theme.primary)
                 Spacer()
-                Label("\(habit.targetPerWeek)×/tydz.", systemImage: "target")
+                Label(habit.frequencyType.targetLabel(habit.targetPerFrequency), systemImage: "target")
                     .font(.caption)
                     .foregroundStyle(Theme.detail)
                     .padding(.horizontal, 8)
@@ -125,7 +125,8 @@ struct HabitDetailView: View {
                 color: Theme.primary
             )
             CompletionTile(
-                rate: stats?.completionRate7d ?? 0,
+                rate: stats?.completionRateCurrentPeriod ?? 0,
+                frequencyType: habit?.frequencyType ?? .weekly,
                 hasData: stats != nil
             )
         }
@@ -245,16 +246,25 @@ private struct StatTile: View {
 
 private struct CompletionTile: View {
     let rate: Double       // 0.0 ... 1.0
+    let frequencyType: FrequencyType
     let hasData: Bool
 
     private var percent: Int { Int((rate * 100).rounded()) }
+
+    private var periodLabel: String {
+        switch frequencyType {
+        case .daily:   return "Ostatnie 7 dni"
+        case .weekly:  return "Ostatnie 7 dni"
+        case .monthly: return "Ostatnie 30 dni"
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: "calendar.badge.checkmark")
                     .foregroundStyle(Theme.secondary)
-                Text("Ostatnie 7 dni")
+                Text(periodLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -299,13 +309,15 @@ private struct EditHabitView: View {
 
     @State private var name: String
     @State private var description: String
-    @State private var targetPerWeek: Int
+    @State private var frequencyType: FrequencyType
+    @State private var targetPerFrequency: Int
 
     init(habit: Habit) {
         self.habit = habit
         _name = State(initialValue: habit.name)
         _description = State(initialValue: habit.description ?? "")
-        _targetPerWeek = State(initialValue: habit.targetPerWeek)
+        _frequencyType = State(initialValue: habit.frequencyType)
+        _targetPerFrequency = State(initialValue: habit.targetPerFrequency)
     }
 
     private var canSubmit: Bool {
@@ -320,9 +332,24 @@ private struct EditHabitView: View {
                     TextField("Opis", text: $description, axis: .vertical)
                         .lineLimit(2...4)
                 }
-                Section("Cel") {
-                    Stepper(value: $targetPerWeek, in: 1...7) {
-                        Text("\(targetPerWeek)× na tydzień")
+                Section("Częstotliwość") {
+                    Picker("Okres", selection: $frequencyType) {
+                        ForEach(FrequencyType.allCases) { type in
+                            Text(type.label).tag(type)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: frequencyType) { _, newType in
+                        targetPerFrequency = min(targetPerFrequency, newType.maxTarget)
+                        if targetPerFrequency < 1 { targetPerFrequency = newType.defaultTarget }
+                    }
+
+                    Stepper(value: $targetPerFrequency, in: 1...frequencyType.maxTarget) {
+                        HStack {
+                            Image(systemName: "target")
+                                .foregroundStyle(Theme.secondary)
+                            Text(frequencyType.targetLabel(targetPerFrequency))
+                        }
                     }
                 }
             }
@@ -342,7 +369,8 @@ private struct EditHabitView: View {
                                 id: habit.id,
                                 name: trimmedName == habit.name ? nil : trimmedName,
                                 description: trimmedDesc == (habit.description ?? "") ? nil : trimmedDesc,
-                                targetPerWeek: targetPerWeek == habit.targetPerWeek ? nil : targetPerWeek
+                                frequencyType: frequencyType == habit.frequencyType ? nil : frequencyType,
+                                targetPerFrequency: targetPerFrequency == habit.targetPerFrequency ? nil : targetPerFrequency
                             )
                             if ok { dismiss() }
                         }
